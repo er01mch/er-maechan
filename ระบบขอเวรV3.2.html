@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ระบบขอเวรและจัดตารางเวรพยาบาล v3.2</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&family=IBM+Plex+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box}
+body{font-family:'Noto Sans Thai','IBM Plex Sans Thai',sans-serif;margin:0;background:#f8fafc;color:#0f172a;font-size:14px}
+.app-header{background:linear-gradient(135deg,#0369a1,#0284c7,#3b82f6);color:#fff;padding:14px 22px;position:sticky;top:0;z-index:50;box-shadow:0 4px 12px rgba(14,165,233,.18)}
+.app-header h1{font-size:1.35rem;font-weight:700;margin:0;line-height:1.1}
+.app-header .ver{font-size:.75rem;color:rgba(236,254,255,.92);font-weight:500}
+.btn-ghost{background:rgba(255,255,255,.18);color:#fff;border:1px solid rgba(255,255,255,.22);padding:6px 12px;border-radius:10px;font-weight:600;font-size:.78rem;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;backdrop-filter:blur(8px)}
+.btn-ghost:hover{background:rgba(255,255,255,.28);transform:translateY(-1px)}
+.btn-admin{background:linear-gradient(135deg,#f59e0b,#d97706);border-color:#b45309}
+.btn-admin:hover{background:linear-gradient(135deg,#d97706,#b45309)}
+.sub-header{background:linear-gradient(135deg,#075985,#0369a1);color:#fff;padding:10px 22px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;border-bottom:1px solid rgba(255,255,255,.12)}
+.sub-header label{font-size:.7rem;color:rgba(255,255,255,.86);display:block;margin-bottom:2px}
+.sub-header select,.sub-header input{background:rgba(255,255,255,.92);color:#0c4a6e;border:none;border-radius:8px;padding:5px 8px;font-size:.82rem;font-weight:600;font-family:inherit}
+.user-select-box{background:rgba(255,255,255,.25);border:1px solid rgba(255,255,255,.4);border-radius:10px;padding:4px 10px;display:flex;align-items:center;gap:8px}
+.tab-nav{background:#fff;padding:10px 22px;display:flex;gap:6px;border-bottom:1px solid #e2e8f0;position:sticky;top:60px;z-index:40;flex-wrap:wrap;box-shadow:0 2px 6px rgba(0,0,0,.04)}
+.tab-btn{background:transparent;color:#475569;padding:7px 16px;border-radius:9999px;font-weight:600;font-size:.85rem;border:1px solid #e2e8f0;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.tab-btn.active{background:linear-gradient(135deg,#0369a1,#0284c7);color:#fff;border-color:transparent;box-shadow:0 3px 8px rgba(2,132,199,.25)}
+.tab-btn.admin-tab{border-color:#f59e0b;color:#b45309;display:none}
+.tab-btn.admin-tab.active{background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff}
+.main{padding:18px 22px;min-height:calc(100vh - 200px)}
+.tab-panel{display:none}
+.tab-panel.active{display:block;animation:fade-in .25s ease}
+@keyframes fade-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.card{background:#fff;border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.05);border:1px solid #e2e8f0;margin-bottom:14px}
+.shift-palette{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;padding:10px 12px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;align-items:center}
+.shift-btn{padding:6px 12px;border-radius:8px;font-size:.8rem;font-weight:700;cursor:pointer;border:2px solid transparent;transition:all .15s}
+.shift-btn.selected{border-color:#0f172a;box-shadow:0 0 0 2px #fff,0 0 0 3px #0f172a;transform:scale(1.05)}
+.schedule-wrapper{overflow:auto;max-height:calc(100vh - 280px);border:1px solid #e2e8f0;border-radius:12px;background:#fff}
+table.schedule{border-collapse:separate;border-spacing:0;font-size:.75rem;width:max-content;min-width:100%}
+table.schedule thead{position:sticky;top:0;z-index:5}
+table.schedule th{background:linear-gradient(135deg,#0284c7,#0369a1);color:#fff;padding:6px 4px;font-weight:600;text-align:center;white-space:nowrap;border-bottom:2px solid #075985}
+table.schedule th.weekend{background:linear-gradient(135deg,#f59e0b,#ea580c);border-bottom-color:#c2410c}
+table.schedule th.holiday{background:linear-gradient(135deg,#ef4444,#b91c1c);border-bottom-color:#991b1b}
+table.schedule td{padding:0;text-align:center;border-bottom:1px solid #f1f5f9;border-right:1px solid #f1f5f9;background:#fff}
+table.schedule .sticky-col{position:sticky;left:0;background:#fff;z-index:3;padding:6px 8px;text-align:left;border-right:2px solid #e2e8f0}
+table.schedule .sticky-col.name{left:32px;min-width:180px;font-weight:600;color:#0f172a}
+table.schedule .sticky-col.no{left:0;min-width:32px;text-align:center}
+.cell{width:38px;height:34px;cursor:pointer;font-weight:700;font-size:.75rem;display:flex;align-items:center;justify-content:center;border-radius:4px;margin:1px auto;position:relative;transition:all .1s}
+.cell:hover{outline:2px solid #0ea5e9}
+.cell-req{border:2px solid #ea580c!important;box-shadow:inset 0 0 4px rgba(234,88,12,.3)}
+.cell-RO{background:#fed7aa;color:#7c2d12;font-weight:700}
+.cell-ช{background:#fef9c3;color:#854d0e}
+.cell-บ{background:#bae6fd;color:#075985}
+.cell-ด{background:#a5f3fc;color:#155e75}
+.cell-O{background:#e2e8f0;color:#475569}
+.cell-V{background:#bbf7d0;color:#14532d}
+.cell-T{background:#fbcfe8;color:#831843}
+.cell-empty{background:#fff;color:#cbd5e1}
+.btn-emerald{background:#10b981;color:#fff;padding:7px 14px;border-radius:10px;font-weight:700;font-size:.82rem;border:none;cursor:pointer}
+.btn-white{background:#fff;color:#0369a1;padding:7px 14px;border-radius:10px;font-weight:700;font-size:.82rem;border:none;cursor:pointer}
+.btn-danger{background:#ef4444;color:#fff;padding:4px 8px;border-radius:6px;font-weight:600;font-size:.75rem;border:none;cursor:pointer}
+.btn-warning{background:#f59e0b;color:#fff;padding:4px 8px;border-radius:6px;font-weight:600;font-size:.75rem;border:none;cursor:pointer}
+.btn-primary{background:#0ea5e9;color:#fff;padding:8px 16px;border-radius:8px;font-weight:700;font-size:.85rem;border:none;cursor:pointer}
+.footer{background:#0f172a;color:#94a3b8;padding:12px 22px;display:flex;justify-content:space-between;font-size:.75rem}
+.grid-admin{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media (max-width: 768px) { .grid-admin { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <div>
+      <h1>🏥 ระบบขอเวรและจัดตารางเวรพยาบาล</h1>
+      <div class="ver">v3.2 ระบบจัดลำดับคิวคำขอ (Queue System)</div>
+    </div>
+    
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div class="user-select-box" id="userBox">
+        <span style="font-size:.8rem;font-weight:600">🙋‍♀️ ฉัน:</span>
+        <select id="currentUserSelect" onchange="setCurrentUser(this.value)" style="color:#0c4a6e;font-weight:700;padding:4px 8px;border-radius:6px">
+        </select>
+      </div>
+
+      <button class="btn-ghost btn-admin" id="btnAdminAuth" onclick="toggleAdmin()">🔒 เข้าสู่ระบบ Admin</button>
+
+      <button class="btn-ghost" onclick="exportExcel()">📊 Export Excel</button>
+      <button class="btn-ghost" onclick="window.print()">🖨 พิมพ์</button>
+    </div>
+  </div>
+</header>
+
+<div class="sub-header">
+  <div style="display:flex;gap:8px;align-items:center">
+    <div><label>เดือน</label><select id="selMonth" onchange="onDateChange()"></select></div>
+    <div><label>ปี (พ.ศ.)</label><select id="selYear" onchange="onDateChange()"></select></div>
+  </div>
+
+  <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+    <button class="btn-white" onclick="runAutoSchedule()">⚡ ประมวลผลจัดเวร</button>
+    <button class="btn-emerald" onclick="saveData()">💾 บันทึกข้อมูลทั้งหมด</button>
+  </div>
+</div>
+
+<nav class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('request')">📝 ยื่นขอเวร (My Requests)</button>
+  <button class="tab-btn" onclick="switchTab('schedule')">📅 ตารางเวรรวม</button>
+  <button class="tab-btn" onclick="switchTab('summary')">📊 สรุปภาพรวมคำขอ (จัดคิว)</button>
+  <button class="tab-btn admin-tab" id="tabAdminBtn" onclick="switchTab('admin')">⚙️ จัดการระบบ (Admin Panel)</button>
+</nav>
+
+<main class="main">
+  <!-- TAB 1: ยื่นขอเวร -->
+  <section id="tab-request" class="tab-panel active">
+    <div class="card" style="background:#fff7ed;border-color:#ffedd5">
+      <h3 style="margin:0 0 6px;color:#c2410c;font-weight:700">💡 คำแนะนำการยื่นขอเวร</h3>
+      <p style="margin:0;color:#9a3412;font-size:.82rem" id="requestGuide">
+        1. เลือกเวรหรือวันหยุดที่ต้องการจากแถบ **"เลือกประเภทคำขอ"** ด้านล่าง <br>
+        2. คลิกที่ช่องวันในแถวชื่อของคุณเพื่อยื่นขอเวร ระบบจะบันทึกเวลาที่กดยื่นอัตโนมัติ
+      </p>
+    </div>
+
+    <div class="shift-palette" id="requestPalette"></div>
+    <div class="schedule-wrapper">
+      <table class="schedule" id="requestTable"></table>
+    </div>
+  </section>
+
+  <!-- TAB 2: ตารางเวรรวม -->
+  <section id="tab-schedule" class="tab-panel">
+    <!-- เพิ่มปุ่มล้างข้อมูลสำหรับ Admin -->
+    <div id="adminScheduleControls" style="display:none; text-align:right; margin-bottom:12px;">
+      <button class="btn-danger" style="padding:8px 16px; font-size:0.85rem;" onclick="clearScheduleData()">
+        🗑️ เคลียร์ข้อมูลตารางเวรรวม
+      </button>
+    </div>
+    
+    <div class="schedule-wrapper">
+      <table class="schedule" id="fullScheduleTable"></table>
+    </div>
+  </section>
+
+  <!-- TAB 3: สรุปภาพรวมคำขอ -->
+  <section id="tab-summary" class="tab-panel">
+    <div class="card">
+      <h3 style="font-weight:700;margin-bottom:12px;display:flex;justify-content:space-between;">
+        <span>📊 สรุปรายการขอ Off / ขอเวร (เรียงตามลำดับคิว)</span>
+      </h3>
+      <div id="summaryContent"></div>
+    </div>
+  </section>
+
+  <!-- TAB 4: สำหรับผู้ดูแลระบบ (ADMIN PANEL) -->
+  <section id="tab-admin" class="tab-panel">
+    <!-- Card: จัดการล้างข้อมูล (Danger Zone) -->
+    <div class="card" style="border-color:#fca5a5; background-color:#fef2f2; margin-bottom: 16px;">
+      <h3 style="font-weight:700;color:#dc2626;margin-bottom:12px;font-size:1.1rem">⚠️ โซนอันตราย (รีเซ็ตข้อมูล)</h3>
+      <p style="font-size: 0.85rem; color: #991b1b; margin-bottom: 12px;">
+        การลบข้อมูลด้านล่างนี้จะไม่สามารถกู้คืนได้ กรุณาตรวจสอบให้แน่ใจก่อนกดยืนยัน
+      </p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn-danger" style="padding:8px 16px; font-size:0.85rem; background:#ef4444;" onclick="clearScheduleData()">
+          🗑️ เคลียร์เฉพาะ "ตารางเวรรวม"
+        </button>
+        <button class="btn-danger" style="padding:8px 16px; font-size:0.85rem; background:#b91c1c;" onclick="clearAllRequests()">
+          🚨 เคลียร์ "คำขอเวร/ขอ Off" ทั้งหมด
+        </button>
+      </div>
+    </div>
+    <div class="grid-admin">
+      <!-- Card: จัดการตำแหน่ง -->
+      <div class="card">
+        <h3 style="font-weight:700;color:#b45309;margin-bottom:12px;font-size:1.1rem">🏷️ จัดการรายการ "ตำแหน่ง"</h3>
+        <form onsubmit="handleAddPosition(event)" style="display:flex;gap:10px;margin-bottom:12px">
+          <input type="text" id="addPosName" placeholder="เพิ่มตำแหน่งใหม่..." required style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;flex:1">
+          <button type="submit" class="btn-primary" style="background:#b45309">เพิ่ม</button>
+        </form>
+        <ul id="positionList" style="list-style:none;padding:0;margin:0;font-size:.85rem"></ul>
+      </div>
+
+      <!-- Card: จัดการวันหยุด -->
+      <div class="card">
+        <h3 style="font-weight:700;color:#dc2626;margin-bottom:12px;font-size:1.1rem">📅 จัดการวันหยุดนักขัตฤกษ์</h3>
+        <form onsubmit="handleAddHoliday(event)" style="display:flex;gap:10px;margin-bottom:12px">
+          <select id="holDay" style="padding:6px;border:1px solid #cbd5e1;border-radius:6px"></select>
+          <input type="text" id="holName" placeholder="ชื่อวันหยุด..." required style="padding:6px 10px;border:1px solid #cbd5e1;border-radius:6px;flex:1">
+          <button type="submit" class="btn-primary" style="background:#dc2626">เพิ่มวันหยุด</button>
+        </form>
+        <ul id="holidayList" style="list-style:none;padding:0;margin:0;font-size:.85rem"></ul>
+      </div>
+    </div>
+
+    <!-- Card: จัดการพยาบาล -->
+    <div class="card" style="margin-top:16px">
+      <h3 style="font-weight:700;color:#0369a1;margin-bottom:12px;font-size:1.1rem">👥 จัดการรายชื่อพยาบาล / เจ้าหน้าที่</h3>
+      <form onsubmit="handleAddNurse(event)" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;background:#f0f9ff;padding:12px;border-radius:8px;border:1px dashed #bae6fd">
+        <div>
+          <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">ชื่อ-นามสกุล</label>
+          <input type="text" id="addName" placeholder="เช่น นางสาวสมศรี มีสุข" required style="padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;width:220px">
+        </div>
+        <div>
+          <label style="font-size:.8rem;font-weight:600;display:block;margin-bottom:4px">ตำแหน่ง</label>
+          <select id="addPositionSelect" style="padding:8px 12px;border:1px solid #cbd5e1;border-radius:8px;width:180px"></select>
+        </div>
+        <button type="submit" class="btn-primary">➕ บันทึกเพิ่มรายชื่อ</button>
+      </form>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:.85rem">
+          <thead>
+            <tr style="background:#f8fafc;border-bottom:2px solid #e2e8f0;text-align:left">
+              <th style="padding:10px">รหัส (ID)</th>
+              <th style="padding:10px">ชื่อ-นามสกุล</th>
+              <th style="padding:10px">ตำแหน่ง</th>
+              <th style="padding:10px;text-align:center">การจัดการ</th>
+            </tr>
+          </thead>
+          <tbody id="nurseAdminTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </section>
+</main>
+
+<footer class="footer">
+  <div>🏥 ระบบจัดการเวรพยาบาล v3.2</div>
+  <div>พัฒนาระบบเพื่อรองรับการยื่นขอเวร วันหยุด และจัดการบุคลากร</div>
+</footer>
+
+<script>
+// ==================== DATA & STATE ====================
+const SHIFT_TYPES = {
+  'O': { name: 'ขอ Off', cls: 'cell-O' },
+  'ช': { name: 'เวรเช้า', cls: 'cell-ช' },
+  'บ': { name: 'เวรบ่าย', cls: 'cell-บ' },
+  'ด': { name: 'เวรดึก', cls: 'cell-ด' },
+  'V': { name: 'ลาพักร้อน', cls: 'cell-V' },
+  'T': { name: 'ลาประชุม', cls: 'cell-T' }
+};
+
+const DEFAULT_NURSES = [
+  { id: 'N001', name: 'นางสาวสมหญิง พยาบาลดี', position: 'หัวหน้าหอผู้ป่วย' },
+  { id: 'N002', name: 'นางสาวมาลี ใจดีงาม', position: 'พยาบาลวิชาชีพ' }
+];
+
+const DEFAULT_POSITIONS = ['หัวหน้าหอผู้ป่วย', 'รองหัวหน้าหอผู้ป่วย', 'พยาบาลหัวหน้าเวร', 'พยาบาลวิชาชีพ'];
+
+const THAI_MONTHS = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+
+const state = {
+  year: new Date().getFullYear() + 543,
+  month: new Date().getMonth() + 1,
+  currentUserId: 'N001', 
+  isAdmin: false,
+  selectedRequestType: 'RO',
+  nurses: [],
+  positions: [],
+  holidays: {}, 
+  requests: {},
+  requestTimestamps: {}, // เก็บเวลาที่กดขอเวร
+  schedule: {}
+};
+
+// ==================== INIT & EVENT HANDLERS ====================
+window.onload = function() {
+  loadStorage();
+  initSelectors();
+  renderUserSelect();
+  renderPalette();
+  updateAdminUI();
+  renderAll();
+};
+
+function initSelectors() {
+  const selM = document.getElementById('selMonth');
+  selM.innerHTML = THAI_MONTHS.map((m, i) => `<option value="${i+1}">${m}</option>`).join('');
+  selM.value = state.month;
+
+  const selY = document.getElementById('selYear');
+  selY.innerHTML = '';
+  for (let y = 2568; y <= 2575; y++) selY.innerHTML += `<option value="${y}">${y}</option>`;
+  selY.value = state.year;
+}
+
+// ==================== AUTH & ADMIN TOGGLE ====================
+function toggleAdmin() {
+  if (state.isAdmin) {
+    state.isAdmin = false;
+    Swal.fire({icon: 'success', title: 'ออกจากระบบ Admin', timer: 1000, showConfirmButton: false});
+    switchTab('request');
+    updateAdminUI();
+    renderAll();
+  } else {
+    Swal.fire({
+      title: 'เข้าสู่ระบบผู้ดูแล (Admin)',
+      input: 'password',
+      inputPlaceholder: 'ใส่รหัสผ่าน (ลองพิมพ์: admin)',
+      showCancelButton: true,
+      confirmButtonText: 'เข้าสู่ระบบ',
+      cancelButtonText: 'ยกเลิก'
+    }).then(res => {
+      if (res.value === 'admin') {
+        state.isAdmin = true;
+        Swal.fire({icon: 'success', title: 'เข้าสู่ระบบสำเร็จ!', timer: 1000, showConfirmButton: false});
+        updateAdminUI();
+        switchTab('admin');
+        renderAll();
+      } else if (res.value) {
+        Swal.fire('รหัสผ่านไม่ถูกต้อง', '', 'error');
+      }
+    });
+  }
+}
+
+function updateAdminUI() {
+  const btnAuth = document.getElementById('btnAdminAuth');
+  const tabAdmin = document.getElementById('tabAdminBtn');
+  const userBox = document.getElementById('userBox');
+  const guide = document.getElementById('requestGuide');
+  const adminScheduleControls = document.getElementById('adminScheduleControls'); // เพิ่มบรรทัดนี้
+
+  if (state.isAdmin) {
+    btnAuth.innerHTML = '🔓 ออกจากระบบ Admin';
+    btnAuth.classList.remove('btn-admin');
+    btnAuth.style.background = '#ef4444';
+    tabAdmin.style.display = 'inline-flex';
+    userBox.style.opacity = '0.4';
+    guide.innerHTML = "👑 <b>โหมดผู้ดูแลระบบ:</b> คุณสามารถคลิกช่องตารางในแถวของพยาบาล <b>'ทุกคน'</b> เพื่อแก้ไข/ยื่นคำขอแทนได้ทันที";
+    
+    // แสดงปุ่มเคลียร์ตารางเวรเมื่อเป็น Admin
+    if (adminScheduleControls) adminScheduleControls.style.display = 'block'; 
+  } else {
+    btnAuth.innerHTML = '🔒 เข้าสู่ระบบ Admin';
+    btnAuth.classList.add('btn-admin');
+    btnAuth.style.background = '';
+    tabAdmin.style.display = 'none';
+    userBox.style.opacity = '1';
+    guide.innerHTML = "1. เลือกเวรหรือวันหยุด... <br>2. คลิกที่ช่องวันในแถวชื่อของคุณเพื่อยื่นขอเวร ระบบจะบันทึกเวลาอัตโนมัติ";
+    
+    // ซ่อนปุ่มเคลียร์ตารางเวรเมื่อไม่ใช่ Admin
+    if (adminScheduleControls) adminScheduleControls.style.display = 'none';
+  }
+}
+
+// ==================== USERS & SELECTORS ====================
+function renderUserSelect() {
+  const sel = document.getElementById('currentUserSelect');
+  if(state.nurses.length === 0) {
+     sel.innerHTML = '<option value="">--ไม่มีข้อมูล--</option>';
+     return;
+  }
+  sel.innerHTML = state.nurses.map(n => `<option value="${n.id}">${n.name}</option>`).join('');
+  
+  if(!state.nurses.find(n => n.id === state.currentUserId)) {
+      state.currentUserId = state.nurses[0].id;
+  }
+  sel.value = state.currentUserId;
+}
+
+function setCurrentUser(nid) {
+  state.currentUserId = nid;
+  renderRequestTable();
+}
+
+function onDateChange() {
+  state.month = +document.getElementById('selMonth').value;
+  state.year = +document.getElementById('selYear').value;
+  renderAll();
+}
+
+function daysInMonth(yBE, m) {
+  return new Date(yBE - 543, m, 0).getDate();
+}
+
+function getNurseName(nid) {
+  const n = state.nurses.find(x => x.id === nid);
+  return n ? n.name : 'ไม่ทราบชื่อ';
+}
+
+// ==================== RENDER FUNCTIONS ====================
+function renderPalette() {
+  const palette = document.getElementById('requestPalette');
+  let html = '<span style="font-weight:700;color:#475569;margin-right:8px">เลือกประเภทคำขอ:</span>';
+  ['O', 'ช', 'บ', 'ด', 'V','T'].forEach(type => {
+    const active = state.selectedRequestType === type ? 'selected' : '';
+    html += `<button class="shift-btn ${SHIFT_TYPES[type].cls} ${active}" onclick="selectReqType('${type}')">${SHIFT_TYPES[type].name}</button>`;
+  });
+  html += `<button class="shift-btn" style="background:#e2e8f0;color:#475569" onclick="selectReqType('')">🧹 ลบ (ลบเวร)</button>`;
+  palette.innerHTML = html;
+}
+
+function selectReqType(type) {
+  state.selectedRequestType = type;
+  renderPalette();
+}
+
+function renderAll() {
+  renderRequestTable();
+  renderFullSchedule();
+  renderSummary();
+  if (state.isAdmin) {
+    renderAdminPositions();
+    renderAdminHolidaysUI();
+    renderAdminNurseTable();
+  }
+}
+
+// ==================== TABLE GENERATION ====================
+function buildTableHeader() {
+  const days = daysInMonth(state.year, state.month);
+  let html = '<thead><tr><th class="sticky-col no">ที่</th><th class="sticky-col name">ชื่อ-นามสกุล</th>';
+  
+  for (let d = 1; d <= days; d++) {
+    const date = new Date(state.year - 543, state.month - 1, d);
+    const dayOfWeek = date.getDay();
+    const dateKey = `${state.year}-${String(state.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    
+    let thCls = '';
+    let title = '';
+    
+    if (state.holidays[dateKey]) {
+      thCls = 'holiday';
+      title = `title="วันหยุด: ${state.holidays[dateKey]}"`;
+    } else if (dayOfWeek === 0 || dayOfWeek === 6) {
+      thCls = 'weekend';
+    }
+    
+    html += `<th class="${thCls}" ${title}>${d}</th>`;
+  }
+  html += '</tr></thead><tbody>';
+  return { html, days };
+}
+
+function renderRequestTable() {
+  const tbl = document.getElementById('requestTable');
+  let { html, days } = buildTableHeader();
+
+  state.nurses.forEach((n, idx) => {
+    const isMe = n.id === state.currentUserId;
+    const rowCls = (!state.isAdmin && isMe) ? 'style="background-color:#f0fdf4"' : '';
+    const meStar = (!state.isAdmin && isMe) ? '⭐(ฉัน)' : '';
+    
+    html += `<tr ${rowCls}><td class="sticky-col no">${idx + 1}</td><td class="sticky-col name">${n.name} <span style="font-size:0.7rem;color:#64748b">${meStar}</span></td>`;
+
+    for (let d = 1; d <= days; d++) {
+      const key = `${n.id}-${d}`;
+      const req = state.requests[key];
+      const cellCls = req ? SHIFT_TYPES[req].cls : 'cell-empty';
+      const reqBorder = req ? 'cell-req' : '';
+
+      html += `<td>
+        <div class="cell ${cellCls} ${reqBorder}" onclick="handleReqClick('${n.id}', ${d})">
+          ${req || ''}
+        </div>
+      </td>`;
+    }
+    html += '</tr>';
+  });
+
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+// ฟังก์ชันเมื่อคลิกขอเวร (เพิ่มการอัปเดตเวลา)
+function handleReqClick(nid, d) {
+  if (!state.isAdmin && nid !== state.currentUserId) {
+    Swal.fire({ icon: 'warning', title: 'ไม่อนุญาต', text: 'คุณแก้ไขได้เฉพาะแถวชื่อของคุณเท่านั้น!', timer: 1500, showConfirmButton: false });
+    return;
+  }
+
+  const key = `${nid}-${d}`;
+  if (!state.selectedRequestType) {
+    // ลบคำขอ
+    delete state.requests[key];
+    delete state.requestTimestamps[key];
+  } else {
+    // บันทึกคำขอใหม่ (ถ้ายังไม่เคยมีคิวในช่องนี้ ให้บันทึกเวลาใหม่)
+    if (!state.requests[key]) {
+      state.requestTimestamps[key] = Date.now();
+    }
+    state.requests[key] = state.selectedRequestType;
+  }
+  
+  saveData(false);
+  renderRequestTable();
+  renderSummary();
+}
+
+function renderFullSchedule() {
+  const tbl = document.getElementById('fullScheduleTable');
+  let { html, days } = buildTableHeader();
+
+  state.nurses.forEach((n, idx) => {
+    html += `<tr><td class="sticky-col no">${idx + 1}</td><td class="sticky-col name">${n.name}</td>`;
+    for (let d = 1; d <= days; d++) {
+      const key = `${n.id}-${d}`;
+      const shift = state.schedule[key] || state.requests[key] || '';
+      const cls = shift ? (SHIFT_TYPES[shift] ? SHIFT_TYPES[shift].cls : 'cell-empty') : 'cell-empty';
+      html += `<td><div class="cell ${cls}">${shift}</div></td>`;
+    }
+    html += '</tr>';
+  });
+
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+// รูปแบบแสดงเวลา
+function formatThaiTime(timestamp) {
+  if (!timestamp) return 'ไม่ระบุเวลา';
+  const dt = new Date(timestamp);
+  const m = THAI_MONTHS[dt.getMonth()].substring(0, 2) + '.'; // ย่อเดือน
+  const d = dt.getDate();
+  const time = dt.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return `${d} ${m} ${time} น.`;
+}
+
+// แท็บสรุป: โชว์คิวจัดอันดับ
+function renderSummary() {
+  const box = document.getElementById('summaryContent');
+  
+  // สร้าง Array เพื่อนำมาจัดเรียงตามเวลา
+  const reqArray = [];
+  for (const key in state.requests) {
+    const [nid, d] = key.split('-');
+    reqArray.push({
+      nid, d, 
+      req: state.requests[key],
+      ts: state.requestTimestamps[key] || 0 // กรณีโหลดจากข้อมูลเก่าที่ไม่มีเวลา
+    });
+  }
+
+  // เรียงลำดับจากเวลาน้อย (กดก่อน) ไปมาก (กดทีหลัง)
+  reqArray.sort((a, b) => a.ts - b.ts);
+
+  if (reqArray.length === 0) {
+    box.innerHTML = '<div style="text-align:center;color:#64748b;padding:20px;">ยังไม่มีคำขอเวรในเดือนนี้</div>';
+    return;
+  }
+
+  let html = `
+    <div style="font-size:0.8rem;color:#64748b;margin-bottom:8px">
+      * เรียงลำดับคิวตามเวลาที่กดส่งคำขอ (First come, First served)
+    </div>
+    <ul style="list-style:none; padding:0; margin:0; border:1px solid #e2e8f0; border-radius:8px; overflow:hidden;">
+  `;
+
+  reqArray.forEach((item, index) => {
+    const name = getNurseName(item.nid);
+    const typeName = SHIFT_TYPES[item.req].name;
+    const timeStr = formatThaiTime(item.ts);
+    
+    // ตกแต่งเหรียญอันดับ
+    let badge = `background:#e2e8f0; color:#475569;`;
+    if (index === 0) badge = `background:#fef08a; color:#854d0e; box-shadow:0 0 0 2px #fde047;`; // ที่ 1
+    else if (index === 1) badge = `background:#cbd5e1; color:#334155;`; // ที่ 2
+    else if (index === 2) badge = `background:#fed7aa; color:#9a3412;`; // ที่ 3
+
+    html += `
+      <li style="display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid #f1f5f9; background:${index % 2 === 0 ? '#fff' : '#f8fafc'};">
+        <div style="min-width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:12px; ${badge}">
+          ${index + 1}
+        </div>
+        <div style="flex:1; line-height:1.4;">
+          <b style="color:#0f172a">${name}</b> ขอ <b>${typeName}</b> 
+          <span style="display:inline-block; margin-left:6px; font-size:0.8rem; background:#f1f5f9; padding:2px 6px; border-radius:4px;">วันที่ ${item.d}</span>
+        </div>
+        <div style="font-size:0.75rem; color:#64748b; text-align:right; white-space:nowrap;">
+          🕒 ${timeStr}
+        </div>
+      </li>
+    `;
+  });
+  
+  html += '</ul>';
+  box.innerHTML = html;
+}
+
+// ==================== ADMIN PANEL FUNCTIONS ====================
+function renderAdminPositions() {
+  const list = document.getElementById('positionList');
+  const sel = document.getElementById('addPositionSelect');
+  
+  list.innerHTML = state.positions.map((p, i) => `
+    <li style="display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #f1f5f9">
+      <span>${p}</span>
+      <button onclick="removePosition(${i})" style="color:#ef4444;background:none;border:none;cursor:pointer;font-size:12px">❌ ลบ</button>
+    </li>
+  `).join('');
+
+  sel.innerHTML = state.positions.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
+function handleAddPosition(e) {
+  e.preventDefault();
+  const input = document.getElementById('addPosName');
+  const val = input.value.trim();
+  if(val && !state.positions.includes(val)) {
+    state.positions.push(val);
+    input.value = '';
+    saveData(false);
+    renderAdminPositions();
+  }
+}
+function removePosition(idx) {
+  state.positions.splice(idx, 1);
+  saveData(false);
+  renderAdminPositions();
+}
+
+function renderAdminHolidaysUI() {
+  const days = daysInMonth(state.year, state.month);
+  const selDay = document.getElementById('holDay');
+  const list = document.getElementById('holidayList');
+
+  selDay.innerHTML = Array.from({length: days}, (_, i) => `<option value="${i+1}">วันที่ ${i+1}</option>`).join('');
+
+  let holHtml = '';
+  const prefix = `${state.year}-${String(state.month).padStart(2,'0')}-`;
+  for(let key in state.holidays) {
+    if(key.startsWith(prefix)) {
+      const d = parseInt(key.split('-')[2], 10);
+      holHtml += `
+        <li style="display:flex;justify-content:space-between;padding:6px;border-bottom:1px solid #fee2e2;background:#fef2f2;margin-bottom:4px;border-radius:4px">
+          <span><b style="color:#dc2626">วันที่ ${d}:</b> ${state.holidays[key]}</span>
+          <button onclick="removeHoliday('${key}')" style="color:#b91c1c;background:none;border:none;cursor:pointer;font-size:12px">❌ ลบ</button>
+        </li>
+      `;
+    }
+  }
+  list.innerHTML = holHtml || '<div style="color:#94a3b8;font-size:12px;margin-top:4px">ยังไม่มีวันหยุดนักขัตฤกษ์ในเดือนนี้</div>';
+}
+
+function handleAddHoliday(e) {
+  e.preventDefault();
+  const d = document.getElementById('holDay').value;
+  const name = document.getElementById('holName').value.trim();
+  const dateKey = `${state.year}-${String(state.month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  
+  if(name) {
+    state.holidays[dateKey] = name;
+    document.getElementById('holName').value = '';
+    saveData(false);
+    renderAll();
+  }
+}
+
+function removeHoliday(key) {
+  delete state.holidays[key];
+  saveData(false);
+  renderAll();
+}
+
+function generateUniqueId() {
+  if (state.nurses.length === 0) return 'N001';
+  const maxId = Math.max(...state.nurses.map(n => {
+    const num = parseInt(n.id.substring(1));
+    return isNaN(num) ? 0 : num;
+  }));
+  return 'N' + String(maxId + 1).padStart(3, '0');
+}
+
+function renderAdminNurseTable() {
+  const tbody = document.getElementById('nurseAdminTableBody');
+  tbody.innerHTML = state.nurses.map((n) => `
+    <tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:10px;font-weight:bold;color:#0284c7">${n.id}</td>
+      <td style="padding:10px;font-weight:600">${n.name}</td>
+      <td style="padding:10px">${n.position}</td>
+      <td style="padding:10px;text-align:center;">
+        <button class="btn-warning" style="margin-right:4px;" onclick="editNurse('${n.id}')">✏️ แก้ไข</button>
+        <button class="btn-danger" onclick="deleteNurse('${n.id}')">🗑 ลบ</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+function handleAddNurse(e) {
+  e.preventDefault();
+  const name = document.getElementById('addName').value.trim();
+  const position = document.getElementById('addPositionSelect').value;
+  if(!name) return;
+
+  const newId = generateUniqueId();
+  state.nurses.push({ id: newId, name, position });
+  document.getElementById('addName').value = '';
+  
+  saveData(false);
+  renderUserSelect();
+  renderAll();
+  Swal.fire({ icon: 'success', title: 'เพิ่มสำเร็จ', timer: 1000, showConfirmButton: false });
+}
+
+function editNurse(nid) {
+  const nurse = state.nurses.find(n => n.id === nid);
+  if (!nurse) return;
+
+  const optionsHtml = state.positions.map(p =>
+    `<option value="${p}" ${p === nurse.position ? 'selected' : ''}>${p}</option>`
+  ).join('');
+
+  Swal.fire({
+    title: 'แก้ไขข้อมูลเจ้าหน้าที่',
+    html: `
+      <div style="text-align: left; margin-top: 10px;">
+        <label style="display:block; font-size:14px; margin-bottom:4px; font-weight:bold;">ชื่อ-นามสกุล</label>
+        <input id="swal-input-name" class="swal2-input" style="width: 100%; box-sizing: border-box; margin:0;" value="${nurse.name}">
+        
+        <label style="display:block; font-size:14px; margin-top:12px; margin-bottom:4px; font-weight:bold;">ตำแหน่ง</label>
+        <select id="swal-input-pos" class="swal2-select" style="width: 100%; box-sizing: border-box; margin:0; padding: 10px;">
+          ${optionsHtml}
+        </select>
+      </div>
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'บันทึก',
+    cancelButtonText: 'ยกเลิก',
+    preConfirm: () => {
+      const newName = document.getElementById('swal-input-name').value.trim();
+      const newPos = document.getElementById('swal-input-pos').value;
+      if (!newName) Swal.showValidationMessage('กรุณาระบุชื่อ-นามสกุล');
+      return { name: newName, position: newPos };
+    }
+  }).then((result) => {
+    if (result.isConfirmed) {
+      nurse.name = result.value.name;
+      nurse.position = result.value.position;
+      saveData(false);
+      renderUserSelect();
+      renderAll();
+      Swal.fire({ icon: 'success', title: 'อัปเดตข้อมูลสำเร็จ', timer: 1200, showConfirmButton: false });
+    }
+  });
+}
+
+function deleteNurse(nid) {
+  Swal.fire({
+    title: 'ยืนยันการลบ?',
+    text: `ลบเจ้าหน้าที่รหัส ${nid} และข้อมูลเวรที่เกี่ยวข้องทั้งหมด?`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444'
+  }).then((res) => {
+    if (res.isConfirmed) {
+      state.nurses = state.nurses.filter(n => n.id !== nid);
+      for(let k in state.requests) if(k.startsWith(nid+'-')) delete state.requests[k];
+      for(let k in state.requestTimestamps) if(k.startsWith(nid+'-')) delete state.requestTimestamps[k];
+      for(let k in state.schedule) if(k.startsWith(nid+'-')) delete state.schedule[k];
+      
+      saveData(false);
+      renderUserSelect();
+      renderAll();
+    }
+  });
+}
+
+// ==================== AUTO-SCHEDULE ALGORITHM ====================
+function runAutoSchedule() {
+  Swal.fire({ title: 'กำลังประมวลผลจัดเวร...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  setTimeout(() => {
+    const days = daysInMonth(state.year, state.month);
+    state.schedule = {}; 
+
+    for (const key in state.requests) {
+      const req = state.requests[key];
+      state.schedule[key] = (req === 'RO') ? 'O' : req;             
+    }
+
+    const shiftList = ['ช', 'บ', 'ด', 'O'];
+    state.nurses.forEach(n => {
+      for (let d = 1; d <= days; d++) {
+        const key = `${n.id}-${d}`;
+        if (!state.schedule[key]) {
+          state.schedule[key] = shiftList[Math.floor(Math.random() * shiftList.length)];
+        }
+      }
+    });
+
+    saveData(false);
+    renderAll();
+    Swal.close();
+    Swal.fire({ icon: 'success', title: 'จัดเวรสำเร็จ!', timer: 1500, showConfirmButton: false });
+  }, 500);
+}
+
+// ==================== TAB & STORAGE ====================
+function switchTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  
+  const targetBtn = document.querySelector(`.tab-btn[onclick="switchTab('${tabName}')"]`);
+  if(targetBtn) targetBtn.classList.add('active');
+  document.getElementById(`tab-${tabName}`).classList.add('active');
+}
+
+function saveData(showAlert = true) {
+  const data = { 
+    nurses: state.nurses, 
+    requests: state.requests, 
+    requestTimestamps: state.requestTimestamps, // เซฟเวลาที่บันทึก
+    schedule: state.schedule, 
+    positions: state.positions, 
+    holidays: state.holidays 
+  };
+  localStorage.setItem('nurse_system_v3', JSON.stringify(data));
+  if (showAlert) Swal.fire({ icon: 'success', title: 'บันทึกข้อมูลเรียบร้อย', timer: 1200, showConfirmButton: false });
+}
+
+// นำ URL ที่คัดลอกมาจากขั้นตอนที่ 1 มาวางในเครื่องหมายคำพูดด้านล่าง
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzOVvvGvHpY5_hZ2hIkEfLcrvoo9XfR-f30S-RIKQCZwYz8b46V74VrirFYkqh97K0YHQ/exec';
+
+async function loadStorage() {
+  Swal.fire({ title: 'กำลังโหลดข้อมูล...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  try {
+    const response = await fetch(SCRIPT_URL);
+    const parsed = await response.json();
+    
+    if (parsed && Object.keys(parsed).length > 0) {
+      state.nurses = (parsed.nurses && parsed.nurses.length) ? parsed.nurses : JSON.parse(JSON.stringify(DEFAULT_NURSES));
+      state.positions = (parsed.positions && parsed.positions.length) ? parsed.positions : JSON.parse(JSON.stringify(DEFAULT_POSITIONS));
+      state.holidays = parsed.holidays || {};
+      state.requests = parsed.requests || {};
+      state.requestTimestamps = parsed.requestTimestamps || {};
+      state.schedule = parsed.schedule || {};
+    } else {
+      resetToDefault();
+    }
+    Swal.close();
+    renderAll();
+  } catch(e) { 
+    console.error(e);
+    resetToDefault(); 
+    Swal.close();
+  }
+}
+
+async function saveData(showAlert = true) {
+  if (showAlert) Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+  
+  const data = { 
+    nurses: state.nurses, 
+    requests: state.requests, 
+    requestTimestamps: state.requestTimestamps, 
+    schedule: state.schedule, 
+    positions: state.positions, 
+    holidays: state.holidays 
+  };
+
+  try {
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+    });
+    if (showAlert) Swal.fire({ icon: 'success', title: 'บันทึกข้อมูลออนไลน์เรียบร้อย', timer: 1200, showConfirmButton: false });
+  } catch (e) {
+    if (showAlert) Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดในการบันทึก' });
+  }
+}
+
+function resetToDefault() {
+  state.nurses = JSON.parse(JSON.stringify(DEFAULT_NURSES));
+  state.positions = JSON.parse(JSON.stringify(DEFAULT_POSITIONS));
+}
+
+function exportExcel() {
+  const days = daysInMonth(state.year, state.month);
+  const data = state.nurses.map((n, i) => {
+    const row = { 'ลำดับ': i + 1, 'รหัส': n.id, 'ชื่อ-นามสกุล': n.name, 'ตำแหน่ง': n.position };
+    for (let d = 1; d <= days; d++) {
+      const key = `${n.id}-${d}`;
+      row[`วันที่ ${d}`] = state.schedule[key] || state.requests[key] || '-';
+    }
+    return row;
+  });
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "ตารางเวร");
+  XLSX.writeFile(wb, `ตารางเวร_${state.month}_${state.year}.xlsx`);
+}
+// ==================== CLEAR SCHEDULE DATA ====================
+function clearScheduleData() {
+  Swal.fire({
+    title: 'ยืนยันการเคลียร์ตารางเวร?',
+    text: 'ข้อมูลตารางเวรที่ประมวลผลหรือจัดไว้แล้วจะถูกลบทั้งหมด (คำขอยื่นเวรของพยาบาลจะไม่หายไป)',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#ef4444',
+    confirmButtonText: '🗑️ ใช่, ลบข้อมูลเลย!',
+    cancelButtonText: 'ยกเลิก'
+  }).then((res) => {
+    if (res.isConfirmed) {
+      state.schedule = {}; // เคลียร์เฉพาะตารางที่จัด
+      saveData(false);
+      renderAll();
+      Swal.fire({ 
+        icon: 'success', 
+        title: 'เคลียร์ตารางเวรเรียบร้อย!', 
+        timer: 1500, 
+        showConfirmButton: false 
+      });
+    }
+  });
+}
+// ==================== CLEAR ALL REQUESTS ====================
+function clearAllRequests() {
+  Swal.fire({
+    title: 'ยืนยันการลบคำขอทั้งหมด?',
+    text: 'ข้อมูลการยื่นขอเวรและขอ Off ของเจ้าหน้าที่ "ทุกคนในเดือนนี้" จะถูกลบถาวร!',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#b91c1c',
+    confirmButtonText: '🚨 ใช่, ลบคำขอทั้งหมด!',
+    cancelButtonText: 'ยกเลิก'
+  }).then((res) => {
+    if (res.isConfirmed) {
+      state.requests = {}; // ลบข้อมูลคำขอ
+      state.requestTimestamps = {}; // ลบข้อมูลเวลาที่กด
+      saveData(false);
+      renderAll();
+      Swal.fire({ 
+        icon: 'success', 
+        title: 'ลบคำขอเวรทั้งหมดเรียบร้อย!', 
+        timer: 1500, 
+        showConfirmButton: false 
+      });
+    }
+  });
+}
+</script>
+</body>
+</html>
